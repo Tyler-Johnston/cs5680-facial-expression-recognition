@@ -4,6 +4,25 @@ import cv2
 import matplotlib.pyplot as plt
 from skimage.feature import local_binary_pattern
 
+'''
+CSV Format: emotion number, pixels, usage
+
+- Emotions/Expressions are defined as determined index below:
+
+    0 : Anger
+    1 : Disgust
+    2 : Fear
+    3 : Happiness
+    4 : Sadness
+    5 : Surprise
+    6 : Neutral
+    7 : Contempt
+
+- Pixels contains 2304 pixels (48x48) for each row
+
+- Usage is determined as Training(80%) / PublicTest(10%) / PrivateTest(10%)
+'''
+
 # LBP feature extraction function
 def extractLbpFeatures(image):
     radius = 1  # Radius of the circle
