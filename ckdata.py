@@ -2,29 +2,24 @@ import pandas as pd
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+from skimage.feature import local_binary_pattern
 
-'''
-CSV Format: emotion number, pixels, usage
+# LBP feature extraction function
+def extractLbpFeatures(image):
+    radius = 1  # Radius of the circle
+    nPoints = 8 * radius  # Number of points to consider around the circle
+    lbpImage = local_binary_pattern(image, nPoints, radius, method='uniform')
+    nBins = int(lbpImage.max() + 1)
+    lbpHist, _ = np.histogram(lbpImage.ravel(), bins=nBins, range=(0, nBins), density=True)
+    return lbpHist
 
-- Emotions/Expressions are defined as determined index below:
+# ORB feature extraction function
+def extractOrbFeatures(image):
+    orb = cv2.ORB_create()
+    keypoints, descriptors = orb.detectAndCompute(image, None)
+    return descriptors
 
-    0 : Anger
-    1 : Disgust
-    2 : Fear
-    3 : Happiness
-    4 : Sadness
-    5 : Surprise
-    6 : Neutral
-    7 : Contempt
-
-- Pixels contains 2304 pixels (48x48) each row
-
-- Usage is determined as Training(80%) / PublicTest(10%) / PrivateTest(10%)
-'''
-
-# Load Haar Cascade for face detection
-# This returns a list of rectangles where faces were detected. 
-# Each rectangle is represented by the coordinates (x, y) and the width and height (w, h)
+# Load the Haar Cascade for face detection
 cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # Load your CSV file
@@ -39,10 +34,18 @@ for i in range(5):
 
     for (x, y, w, h) in faces:
         # Extract the face region from the image
-        face_region = image[y:y+h, x:x+w]
-        
+        extractedFace = image[y:y+h, x:x+w]
+
         # Display the extracted face region
-        plt.imshow(face_region, cmap='gray')
+        plt.imshow(extractedFace, cmap='gray')
         plt.title(f"Extracted Face from Image {i+1}")
         plt.axis('off')
         plt.show()
+
+        # Extract LBP and ORB features
+        lbpFeatures = extractLbpFeatures(extractedFace)
+        orbFeatures = extractOrbFeatures(extractedFace)
+
+        # You can now use lbpFeatures and orbFeatures for further analysis
+        print(f"LBP Features for Image {i+1}: {lbpFeatures}")
+        print(f"ORB Features for Image {i+1}: {orbFeatures}")
