@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import dlib
 
 '''
 CSV Format: emotion number, pixels, usage
@@ -23,9 +22,10 @@ CSV Format: emotion number, pixels, usage
 - Usage is determined as Training(80%) / PublicTest(10%) / PrivateTest(10%)
 '''
 
-# load Dlib's face detector and facial landmark predictor
-detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks_GTX.dat')
+# Load Haar Cascade for face detection
+# This returns a list of rectangles where faces were detected. 
+# Each rectangle is represented by the coordinates (x, y) and the width and height (w, h)
+cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # Load your CSV file
 ckCSV = pd.read_csv("ckextended.csv")
@@ -33,30 +33,16 @@ ckCSV = pd.read_csv("ckextended.csv")
 for i in range(5):
     pixels = ckCSV.iloc[i]['pixels']
     pixels = list(map(int, pixels.split()))
-    image = np.array(pixels).reshape(48, 48).astype(np.uint8)  # Adjust the shape as per your dataset
-    # image = np.stack((image,)*3, axis=-1)
+    image = np.array(pixels).reshape(48, 48).astype(np.uint8)
 
-    # Detect faces in the image
-    faces = detector(image)
+    faces = cascade.detectMultiScale(image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-    for face in faces:
-        landmarks = predictor(image, face)
-
-        # Extracting the facial region based on landmarks
-        x = [landmarks.part(n).x for n in range(0, 27)]
-        y = [landmarks.part(n).y for n in range(0, 27)]
-        x_min, x_max = min(x), max(x)
-        y_min, y_max = min(y), max(y)
-
-        # Crop to the facial region
-        face_region = image[y_min:y_max, x_min:x_max]
-
-        # Display the cropped facial region
+    for (x, y, w, h) in faces:
+        # Extract the face region from the image
+        face_region = image[y:y+h, x:x+w]
+        
+        # Display the extracted face region
         plt.imshow(face_region, cmap='gray')
-        plt.title(f"Face Region in Image {i+1}")
+        plt.title(f"Extracted Face from Image {i+1}")
         plt.axis('off')
         plt.show()
-
-
-
-
