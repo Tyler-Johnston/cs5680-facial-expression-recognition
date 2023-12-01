@@ -16,32 +16,49 @@ def extractLbpFeatures(faceImage):
     nBins = int(lbp.max() + 1)
     hist, _ = np.histogram(lbp.ravel(), bins=nBins, range=(0, nBins), density=True)
     
-    # Display the LBP image
-    plt.imshow(lbp, cmap='gray')
-    plt.title("LBP Image")
-    plt.axis('off')
-    plt.show()
+    # # Display the LBP image
+    # plt.imshow(lbp, cmap='gray')
+    # plt.title("LBP Image")
+    # plt.axis('off')
+    # plt.show()
     
     return hist
 
-# Function to extract ORB features
-def extractOrbFeatures(faceImage):
-    orb = cv2.ORB_create()
+def extractOrbFeatures(faceImage, maxKeypoints=500, descriptorSize=32):
+    orb = cv2.ORB_create(nfeatures=maxKeypoints)
     keypoints, descriptors = orb.detectAndCompute(faceImage, None)
     
-    # Draw keypoints on the image
-    if keypoints:
-        keypointImage = cv2.drawKeypoints(faceImage, keypoints, None, color=(0, 255, 0), flags=0)
-        plt.imshow(keypointImage)
-        plt.title("ORB Keypoints")
-        plt.axis('off')
-        plt.show()
+    if descriptors is not None:
+        # Flatten and pad the descriptor array
+        flattened_descriptors = descriptors.flatten()
+        padded_length = maxKeypoints * descriptorSize
+        padded_descriptors = np.zeros(padded_length)
+        padded_descriptors[:len(flattened_descriptors)] = flattened_descriptors
+        return padded_descriptors
+    else:
+        # Return a zero vector if no keypoints are detected
+        return np.zeros(max_keypoints * descriptor_size)
+
+
+# # Function to extract ORB features
+# def extractOrbFeatures(faceImage):
+#     orb = cv2.ORB_create()
+#     keypoints, descriptors = orb.detectAndCompute(faceImage, None)
     
-    return keypoints, descriptors
+#     # # Draw keypoints on the image
+#     # if keypoints:
+#     #     keypointImage = cv2.drawKeypoints(faceImage, keypoints, None, color=(0, 255, 0), flags=0)
+#     #     plt.imshow(keypointImage)
+#     #     plt.title("ORB Keypoints")
+#     #     plt.axis('off')
+#     #     plt.show()
+    
+#     return keypoints, descriptors
 
 # Main function to process images in each emotion folder
 def processEmotionImages(baseFolder):
     emotions = ['anger', 'contempt', 'disgust', 'fear', 'happiness', 'neutral', 'sadness', 'surprise']
+    # emotions = ['anger']
     features = {}
 
     for emotion in emotions:
@@ -63,7 +80,7 @@ def processEmotionImages(baseFolder):
 
                 # Extract features
                 lbpFeatures = extractLbpFeatures(faceImage)
-                _, orbFeatures = extractOrbFeatures(faceImage)
+                orbFeatures = extractOrbFeatures(faceImage)
 
                 lbpFeaturesList.append(lbpFeatures)
                 if orbFeatures is not None:
@@ -75,12 +92,3 @@ def processEmotionImages(baseFolder):
         }
 
     return features
-
-# Specify the base folder where the emotion folders are located
-baseFolder = 'datasets/CK+'  # Update this with the path to your emotion folders
-allFeatures = processEmotionImages(baseFolder)
-
-# Now you can access the LBP and ORB features using allFeatures dictionary
-# For example, to print LBP features for 'anger' emotion:
-print("LBP Features for Anger:", allFeatures['anger']['LBP'])
-print("ORB Features for Anger:", allFeatures['anger']['ORB'])

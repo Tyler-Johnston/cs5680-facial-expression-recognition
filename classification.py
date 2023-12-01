@@ -1,49 +1,51 @@
-import numpy as np
-from sklearn import svm
+from obtainFeatures import processEmotionImages
 from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
 from sklearn.metrics import classification_report, accuracy_score
-import joblib  # For saving the model
+import pickle
 
-# Function to load your dataset
-def load_dataset():
-    # Load your dataset here (LBP, ORB, or fused features)
-    # For example:
-    # features = np.load('features.npy')
-    # labels = np.load('labels.npy')
-    # return features, labels
-    pass
+baseFolder = 'datasets/CK+'
+allFeatures = processEmotionImages(baseFolder)
 
-# Preprocess the data (if necessary)
-def preprocess_data(features):
-    # Implement any preprocessing steps like normalization here
-    # return preprocessed_features
-    pass
+# Preparing the dataset for training
+X_lbp = []
+X_orb = []
+y = []
 
-# Main function
-def main():
-    # Load and preprocess the dataset
-    features, labels = load_dataset()
-    features = preprocess_data(features)
+for emotion, features in allFeatures.items():
+    for feature_vector in features['LBP']:
+        X_lbp.append(feature_vector)
+        y.append(emotion)  # Use numerical labels for emotions if necessary
 
-    # Split the dataset into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
+    for feature_vector in features['ORB']:
+        # Flatten the feature vector due to it being multi-dimensional
+        X_orb.append(feature_vector.flatten())
 
-    # Define the SVM classifier
-    clf = svm.SVC(kernel='linear')
+# Split the dataset into training and testing sets for LBP and ORB
+X_lbp_train, X_lbp_test, y_train, y_test = train_test_split(X_lbp, y, test_size=0.2, random_state=42)
+X_orb_train, X_orb_test, _, _ = train_test_split(X_orb, y, test_size=0.2, random_state=42)
 
-    # Train the classifier
-    clf.fit(X_train, y_train)
+# Training the SVM Classifier for LBP features
+svm_lbp = SVC(kernel='linear', random_state=42)  # You can experiment with different kernels like 'rbf'
+svm_lbp.fit(X_lbp_train, y_train)
 
-    # Make predictions on the test set
-    y_pred = clf.predict(X_test)
+# Training the SVM Classifier for ORB features
+svm_orb = SVC(kernel='linear', random_state=42)
+svm_orb.fit(X_orb_train, y_train)
 
-    # Evaluate the classifier
-    print("Classification Report:")
-    print(classification_report(y_test, y_pred))
-    print("Accuracy:", accuracy_score(y_test, y_pred))
+# Save the models to disk
+with open('svm_lbp_model.pkl', 'wb') as f:
+    pickle.dump(svm_lbp, f)
+with open('svm_orb_model.pkl', 'wb') as f:
+    pickle.dump(svm_orb, f)
 
-    # Save the model
-    joblib.dump(clf, 'svm_classifier.pkl')
+# Prediction and evaluation for LBP
+y_pred_lbp = svm_lbp.predict(X_lbp_test)
+print("LBP Classification Report:")
+print(classification_report(y_test, y_pred_lbp))
+print("LBP Accuracy:", accuracy_score(y_test, y_pred_lbp))
 
-if __name__ == "__main__":
-    main()
+y_pred_orb = svm_orb.predict(X_orb_test)
+print("ORB Classification Report:")
+print(classification_report(y_test, y_pred_orb))
+print("ORB Accuracy:", accuracy_score(y_test, y_pred_orb))
