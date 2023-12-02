@@ -4,29 +4,34 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage.feature import local_binary_pattern
 
-# Load the Haar Cascade for face detection
-cascadePath = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-faceCascade = cv2.CascadeClassifier(cascadePath)
-
 # Function to extract LBP features
-def extractLbpFeatures(faceImage):
+def extractLbpFeatures(faceImage, displayLbp=False):
     radius = 1  # Radius of the LBP operation
     nPoints = 8 * radius  # Number of points to consider
     lbp = local_binary_pattern(faceImage, nPoints, radius, method="uniform")
     nBins = int(lbp.max() + 1)
     hist, _ = np.histogram(lbp.ravel(), bins=nBins, range=(0, nBins), density=True)
     
-    # # Display the LBP image
-    # plt.imshow(lbp, cmap='gray')
-    # plt.title("LBP Image")
-    # plt.axis('off')
-    # plt.show()
+    # Display the LBP image
+    if displayLbp:
+        plt.imshow(lbp, cmap='gray')
+        plt.title("LBP Image")
+        plt.axis('off')
+        plt.show()
     
     return hist
 
-def extractOrbFeatures(faceImage, maxKeypoints=500, descriptorSize=32):
+def extractOrbFeatures(faceImage, maxKeypoints=500, descriptorSize=32, displayOrb=False):
     orb = cv2.ORB_create(nfeatures=maxKeypoints)
     keypoints, descriptors = orb.detectAndCompute(faceImage, None)
+
+    # Draw keypoints on the image
+    if keypoints and displayOrb:
+        keypointImage = cv2.drawKeypoints(faceImage, keypoints, None, color=(0, 255, 0), flags=0)
+        plt.imshow(keypointImage)
+        plt.title("ORB Keypoints")
+        plt.axis('off')
+        plt.show()
     
     if descriptors is not None:
         # Flatten and pad the descriptor array
@@ -37,28 +42,13 @@ def extractOrbFeatures(faceImage, maxKeypoints=500, descriptorSize=32):
         return padded_descriptors
     else:
         # Return a zero vector if no keypoints are detected
-        return np.zeros(max_keypoints * descriptor_size)
-
-
-# # Function to extract ORB features
-# def extractOrbFeatures(faceImage):
-#     orb = cv2.ORB_create()
-#     keypoints, descriptors = orb.detectAndCompute(faceImage, None)
-    
-#     # # Draw keypoints on the image
-#     # if keypoints:
-#     #     keypointImage = cv2.drawKeypoints(faceImage, keypoints, None, color=(0, 255, 0), flags=0)
-#     #     plt.imshow(keypointImage)
-#     #     plt.title("ORB Keypoints")
-#     #     plt.axis('off')
-#     #     plt.show()
-    
-#     return keypoints, descriptors
+        return np.zeros(maxKeypoints * descriptorSize)
 
 # Main function to process images in each emotion folder
-def processEmotionImages(baseFolder):
-    emotions = ['anger', 'contempt', 'disgust', 'fear', 'happiness', 'neutral', 'sadness', 'surprise']
-    # emotions = ['anger']
+def processEmotionImages(baseFolder, emotions):
+    # Load the Haar Cascade for face detection
+    cascadePath = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+    faceCascade = cv2.CascadeClassifier(cascadePath)
     features = {}
 
     for emotion in emotions:
@@ -82,7 +72,8 @@ def processEmotionImages(baseFolder):
                 lbpFeatures = extractLbpFeatures(faceImage)
                 orbFeatures = extractOrbFeatures(faceImage)
 
-                lbpFeaturesList.append(lbpFeatures)
+                if lbpFeatures is not None:
+                    lbpFeaturesList.append(lbpFeatures)
                 if orbFeatures is not None:
                     orbFeaturesList.append(orbFeatures)
 
@@ -92,3 +83,15 @@ def processEmotionImages(baseFolder):
         }
 
     return features
+
+def FeatureFusion(allFeatures):
+    X_combined = []
+    y_combined = []
+    
+    for emotion, features in allFeatures.items():
+        for lbp_feature, orb_feature in zip(features['LBP'], features['ORB']):
+            # Flatten the ORB feature and concatenate it with the LBP feature
+            combined_feature = np.concatenate([lbp_feature, orb_feature.flatten()])
+            X_combined.append(combined_feature)
+            y_combined.append(emotion)
+    return X_combined, y_combined
