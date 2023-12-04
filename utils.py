@@ -84,14 +84,12 @@ def processEmotionImages(baseFolder, emotions):
 
     return features
 
-def FeatureFusion(allFeatures):
+def featureFusion(allFeatures):
     X_combined = []
-    y_combined = []
     
     for emotion, features in allFeatures.items():
         for lbp_feature, orb_feature in zip(features['LBP'], features['ORB']):
             # Flatten the ORB feature and concatenate it with the LBP feature
             combined_feature = np.concatenate([lbp_feature, orb_feature.flatten()])
             X_combined.append(combined_feature)
-            y_combined.append(emotion)
-    return X_combined, y_combined
+    return X_combined

@@ -77,3 +77,62 @@ Thus the initial images are obtained from converting the grayscale 0 - 255 pixel
     orbFeatures = extractOrbFeatures(extractedFace)
     ```
 
+## Phase 2: Feature Fusion and SVM Classification
+
+I realized I was using a low quality version of the CK+ dataset, and I modified my code to accept this new format structure. This corrected the ORB issues I was having in phase 1. In addition to this, I implemented these new features:
+
+### Feature Fusion
+In this phase, we developed a method to combine the Local Binary Patterns (LBP) and Oriented FAST and Rotated BRIEF (ORB) features, known as feature fusion. This approach aims to leverage the strengths of both feature sets for improved facial expression classification. The fusion process involves concatenating LBP and ORB feature vectors for each image.
+
+```python
+def FeatureFusion(allFeatures):
+    X_combined = []
+    y_combined = []
+    
+    for emotion, features in allFeatures.items():
+        for lbp_feature, orb_feature in zip(features['LBP'], features['ORB']):
+            # Flatten the ORB feature and concatenate it with the LBP feature
+            combined_feature = np.concatenate([lbp_feature, orb_feature.flatten()])
+            X_combined.append(combined_feature)
+            y_combined.append(emotion)
+    return X_combined, y_combined
+```
+
+### SVM Classifier
+
+I also employed a Support Vector Machine (SVM) for emotion classification, using the LBP, ORB, and the fused features. SVMs are known for their effectiveness in high-dimensional spaces, making them suitable for our fused feature set. We trained separate SVM models for the LBP, ORB, and combined feature sets, providing a comprehensive analysis of each method's effectiveness. I implemented the SVM classifier using the sklearn library.
+
+```python
+# Preparing the dataset for training
+X_lbp = []
+X_orb = []
+y = []
+
+for emotion, features in allFeatures.items():
+    for feature_vector in features['LBP']:
+        X_lbp.append(feature_vector)
+        y.append(emotion)  # Use numerical labels for emotions if necessary
+
+    for feature_vector in features['ORB']:
+        # Flatten the feature vector due to it being multi-dimensional
+        X_orb.append(feature_vector.flatten())
+
+# Split the dataset into training and testing sets for LBP and ORB
+X_lbp_train, X_lbp_test, y_train, y_test = train_test_split(X_lbp, y, test_size=0.2, random_state=42)
+X_orb_train, X_orb_test, _, _ = train_test_split(X_orb, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42)
+
+# Training the SVM Classifier for LBP features
+svm_lbp = SVC(kernel='linear', random_state=42)
+svm_lbp.fit(X_lbp_train, y_train)
+
+# Training the SVM Classifier for ORB features
+svm_orb = SVC(kernel='linear', random_state=42)
+svm_orb.fit(X_orb_train, y_train)
+
+# Training the SVM Classifier for combined features
+svm_combined = SVC(kernel='linear', random_state=42)
+svm_combined.fit(X_train, y_train)
+```
+
+As of right now, the LBP and ORB and the combined are about 66% accurate. The dataset has a lot of neutral faces but not a lot of angry, fearful, sadness, etc faces, which is causing a bias in the prediction model. I will need to fix this to improve the results in the next phase.
