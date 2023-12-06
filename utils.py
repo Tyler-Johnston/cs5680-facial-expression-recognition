@@ -44,17 +44,16 @@ def extractOrbFeatures(faceImage, maxKeypoints=500, descriptorSize=32, displayOr
         # Return a zero vector if no keypoints are detected
         return np.zeros(maxKeypoints * descriptorSize)
 
-# Main function to process images in each emotion folder
 def processEmotionImages(baseFolder, emotions):
     # Load the Haar Cascade for face detection
     cascadePath = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
     faceCascade = cv2.CascadeClassifier(cascadePath)
-    features = {}
+    lbpFeaturesList = []
+    orbFeaturesList = []
+    yLabels = []
 
     for emotion in emotions:
         emotionFolder = os.path.join(baseFolder, emotion)
-        lbpFeaturesList = []
-        orbFeaturesList = []
 
         for filename in os.listdir(emotionFolder):
             if filename.endswith('.jpg') or filename.endswith('.png'):
@@ -76,20 +75,22 @@ def processEmotionImages(baseFolder, emotions):
                     lbpFeaturesList.append(lbpFeatures)
                 if orbFeatures is not None:
                     orbFeaturesList.append(orbFeatures)
+                yLabels.append(emotion)
 
-        features[emotion] = {
-            'LBP': lbpFeaturesList,
-            'ORB': orbFeaturesList
-        }
+    return lbpFeaturesList, orbFeaturesList, yLabels
 
-    return features
+def zScoreNormalization(features, K, C):
+    mu = np.mean(features, axis=0)
+    sigma = np.std(features, axis=0)
+    normalizedFeatures = K * ((features - mu) / (sigma + C))
+    return normalizedFeatures
 
-def featureFusion(allFeatures):
-    X_combined = []
-    
-    for emotion, features in allFeatures.items():
-        for lbp_feature, orb_feature in zip(features['LBP'], features['ORB']):
-            # Flatten the ORB feature and concatenate it with the LBP feature
-            combined_feature = np.concatenate([lbp_feature, orb_feature.flatten()])
-            X_combined.append(combined_feature)
-    return X_combined
+def featureFusion(lbpFeatures, orbFeatures, K, C):
+    # Normalize each feature set
+    lbpNormalized = zScoreNormalization(lbpFeatures, K, C)
+    orbNormalized = zScoreNormalization(orbFeatures, K, C)
+
+    # Concatenate the normalized features
+    fusedFeatures = np.concatenate((lbpNormalized, orbNormalized), axis=1)
+
+    return fusedFeatures

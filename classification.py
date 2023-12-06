@@ -9,33 +9,20 @@ import pickle
 baseFolder = 'datasets/CK+'
 emotions = ["anger", "contempt", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"]
 
-# Get LBP, ORB, and Fused Features
-allFeatures = processEmotionImages(baseFolder, emotions)
-xCombined = featureFusion(allFeatures)
-
-# Preparing the dataset for training using NumPy arrays
-xLbp = np.empty((0, len(allFeatures[emotions[0]]['LBP'][0])), float)
-xOrb = np.empty((0, len(allFeatures[emotions[0]]['ORB'][0])), float)
-yLabels = []
-
-for emotion, features in allFeatures.items():
-    for featureVector in features['LBP']:
-        xLbp = np.vstack([xLbp, featureVector])
-        yLabels.append(emotion)
-
-    for featureVector in features['ORB']:
-        xOrb = np.vstack([xOrb, featureVector.flatten()])
-
-yLabels = np.array(yLabels)
+# Get LBP and ORB Features, alongwith the yLabels ground-truth
+lbpFeatures, orbFeatures, yLabels = processEmotionImages(baseFolder, emotions)
+K = 100  # Scaling factor as mentioned in the paper
+C = 1    # A chosen constant to avoid division by zero in standard deviation
+xCombined = featureFusion(lbpFeatures, orbFeatures, K, C)
 
 # Split the dataset into training and testing sets for LBP
-xLbpTrain, xLbpTest, yLbpTrain, yLbpTest = train_test_split(xLbp, yLabels, test_size=0.2, random_state=95)
+xLbpTrain, xLbpTest, yLbpTrain, yLbpTest = train_test_split(lbpFeatures, yLabels, test_size=0.2, random_state=95)
 
 # Split the dataset into training and testing sets for ORB
-xOrbTrain, xOrbTest, yOrbTrain, yOrbTest = train_test_split(xOrb, yLabels, test_size=0.2, random_state=95)
+xOrbTrain, xOrbTest, yOrbTrain, yOrbTest = train_test_split(orbFeatures, yLabels, test_size=0.2, random_state=95)
 
 # Split the dataset into training and testing sets for combined features
-xCombinedTrain, xCombinedTest, yCombinedTrain, yCombinedTest = train_test_split(np.array(xCombined), yLabels, test_size=0.2, random_state=95)
+xCombinedTrain, xCombinedTest, yCombinedTrain, yCombinedTest = train_test_split(xCombined, yLabels, test_size=0.2, random_state=95)
 
 # Training the SVM Classifier for LBP features
 svmLbp = SVC(kernel='linear', random_state=95)
