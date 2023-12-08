@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.feature import local_binary_pattern
+import seaborn as sns
 
 # Function to extract LBP features
 def extractLbpFeatures(faceImage, displayLbp=False):
@@ -48,10 +49,13 @@ def processEmotionImages(baseFolder, emotions):
     # Load the Haar Cascade for face detection
     cascadePath = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
     faceCascade = cv2.CascadeClassifier(cascadePath)
+    # Initialize empty lists to hold the LBP and ORB features
     lbpFeaturesList = []
     orbFeaturesList = []
+    # Initialize the emotional state "ground truth" list
     yLabels = []
 
+    # For each image in the CK+ dataset, obtain the LBP and ORB features alongwith the ground truth emotion
     for emotion in emotions:
         emotionFolder = os.path.join(baseFolder, emotion)
 
@@ -85,12 +89,41 @@ def zScoreNormalization(features, K, C):
     normalizedFeatures = K * ((features - mu) / (sigma + C))
     return normalizedFeatures
 
-def featureFusion(lbpFeatures, orbFeatures, K, C):
+def featureFusion(lbpFeatures, orbFeatures, K, C, singleAxis=True):
     # Normalize each feature set
     lbpNormalized = zScoreNormalization(lbpFeatures, K, C)
     orbNormalized = zScoreNormalization(orbFeatures, K, C)
 
     # Concatenate the normalized features
-    fusedFeatures = np.concatenate((lbpNormalized, orbNormalized), axis=1)
+    if singleAxis:
+        fusedFeatures = np.concatenate((lbpNormalized, orbNormalized), axis=1)
+    else:
+        fusedFeatures = np.concatenate((lbpNormalized, orbNormalized))
 
     return fusedFeatures
+
+# def printConfusionMatrixAndAccuracies(confMatrix, classAccuracies, emotions):
+#     print("Confusion Matrix:")
+#     print("\t" + "\t".join(emotions))
+#     for i, row in enumerate(confMatrix):
+#         print(f"{emotions[i]}\t" + "\t".join(map(str, row)))
+
+#     print("\nClass Accuracies:")
+#     for i, accuracy in enumerate(classAccuracies):
+#         print(f"{emotions[i]}: {accuracy:.2f}")
+
+def plot_confusion_matrix_and_accuracies(conf_matrix, class_accuracies, emotions, title):
+    # Plotting the confusion matrix
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=emotions, yticklabels=emotions)
+    plt.title(title)
+    plt.ylabel('True Label')
+    plt.xlabel('Predicted Label')
+    
+    # Show the plot
+    plt.show()
+
+    # Print class accuracies
+    print("\nClass Accuracies:")
+    for i, accuracy in enumerate(class_accuracies):
+        print(f"{emotions[i]}: {accuracy:.2f}")

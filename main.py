@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 import argparse
 import matplotlib.pyplot as plt
-from utils import extractLbpFeatures, extractOrbFeatures
+from utils import extractLbpFeatures, extractOrbFeatures, featureFusion
 
 def loadModel(modelPath):
     with open(modelPath, 'rb') as file:
@@ -28,7 +28,7 @@ def preprocessImage(imagePath, faceCascade, useOrb=False, useCombined=False):
 
     # Determine which features to use
     if useCombined:
-        combinedFeatures = np.concatenate([lbpFeatures, orbFeatures])
+        combinedFeatures = featureFusion(lbpFeatures, orbFeatures, K=100, C=1, singleAxis=False)
         return combinedFeatures
     elif useOrb:
         return orbFeatures
@@ -58,11 +58,25 @@ def main(imagePath, modelType):
     # Make a prediction
     prediction = model.predict(features)
 
-    # Read the image and plot it
+    # Make a prediction and get decision function scores
+    decisionScores = model.decision_function(features)
+
+    # Get the indices of the top 4 predictions based on decision scores
+    top4Idx = np.argsort(decisionScores[0])[-4:]
+
+    # Get the decision scores for the top 4 predictions
+    top4Scores = decisionScores[0][top4Idx]
+
+    # Get the emotion labels for the top 4 predictions
+    top4Emotions = model.classes_[top4Idx]
+
+    # Display the image and the top 4 predictions with their decision scores
     image = cv2.imread(imagePath)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     plt.imshow(image)
     plt.title(f"Predicted Emotion: {prediction[0]}")
+    for i, (emotion, score) in enumerate(zip(top4Emotions, top4Scores)):
+        plt.text(10, 30 + 30*i, f"{emotion}: {score:.2f}", fontsize=12, color='black', bbox=dict(facecolor='white', alpha=0.5))
     plt.axis('off')
     plt.show()
 
