@@ -102,16 +102,6 @@ def featureFusion(lbpFeatures, orbFeatures, K, C, singleAxis=True):
 
     return fusedFeatures
 
-# def printConfusionMatrixAndAccuracies(confMatrix, classAccuracies, emotions):
-#     print("Confusion Matrix:")
-#     print("\t" + "\t".join(emotions))
-#     for i, row in enumerate(confMatrix):
-#         print(f"{emotions[i]}\t" + "\t".join(map(str, row)))
-
-#     print("\nClass Accuracies:")
-#     for i, accuracy in enumerate(classAccuracies):
-#         print(f"{emotions[i]}: {accuracy:.2f}")
-
 def plot_confusion_matrix_and_accuracies(conf_matrix, class_accuracies, emotions, title):
     # Plotting the confusion matrix
     plt.figure(figsize=(10, 8))
@@ -124,6 +114,6 @@ def plot_confusion_matrix_and_accuracies(conf_matrix, class_accuracies, emotions
     plt.show()
 
     # Print class accuracies
-    print("\nClass Accuracies:")
+    print(f"\n{title} Accuracies:")
     for i, accuracy in enumerate(class_accuracies):
         print(f"{emotions[i]}: {accuracy:.2f}")
