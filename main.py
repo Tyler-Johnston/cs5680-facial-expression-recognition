@@ -38,9 +38,9 @@ def preprocessImage(imagePath, faceCascade, useOrb=False, useCombined=False):
 def main(imagePath, modelType):
     # Select model based on input
     modelPaths = {
-        'lbp': 'svmLbpModel.pkl',
-        'orb': 'svmOrbModel.pkl',
-        'combined': 'svmCombinedModel.pkl'
+        'lbp': 'LBP_model.pkl',
+        'orb': 'ORB_model.pkl',
+        'combined': 'Combined_model.pkl'
     }
     modelPath = modelPaths[modelType]
     model = loadModel(modelPath)

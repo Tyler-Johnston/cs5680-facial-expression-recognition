@@ -45,38 +45,30 @@ def extractOrbFeatures(faceImage, maxKeypoints=500, descriptorSize=32, displayOr
         # Return a zero vector if no keypoints are detected
         return np.zeros(maxKeypoints * descriptorSize)
 
-def processEmotionImages(baseFolder, emotions, maxImages=100):
-    # Load the Haar Cascade for face detection
+def processEmotionImages(baseFolder, emotions, underSample=True):
     cascadePath = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
     faceCascade = cv2.CascadeClassifier(cascadePath)
-    # Initialize empty lists to hold the LBP and ORB features
-    lbpFeaturesList = []
-    orbFeaturesList = []
-    # Initialize the emotional state "ground truth" list
-    yLabels = []
+    lbpFeaturesList, orbFeaturesList, yLabels = [], [], []
+    emotionImageCount = {emotion: 0 for emotion in emotions}
+    maxImages = 100
 
-    # For each image in the CK+ dataset, obtain the LBP and ORB features along with the ground truth emotion
     for emotion in emotions:
         emotionFolder = os.path.join(baseFolder, emotion)
-        imageCount = 0
 
         for filename in os.listdir(emotionFolder):
             if filename.endswith('.jpg') or filename.endswith('.png'):
-                if imageCount >= maxImages:
-                    print(f"got to max images for {emotion}")
+                emotionImageCount[emotion] += 1
+                if underSample and emotionImageCount[emotion] > maxImages:
+                    print(f"Reached max images for {emotion}")
                     break
 
                 imagePath = os.path.join(emotionFolder, filename)
                 image = cv2.imread(imagePath, cv2.IMREAD_GRAYSCALE)
-                
-                # Detect faces in the image
                 faces = faceCascade.detectMultiScale(image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
                 if len(faces) == 0:
-                    continue  # Skip images where no face is detected
-                x, y, w, h = faces[0]  # Use the first detected face
-                faceImage = image[y:y+h, x:x+w]  # Extract the face region
-
-                # Extract features
+                    continue
+                x, y, w, h = faces[0]
+                faceImage = image[y:y+h, x:x+w]
                 lbpFeatures = extractLbpFeatures(faceImage)
                 orbFeatures = extractOrbFeatures(faceImage)
 
@@ -86,10 +78,7 @@ def processEmotionImages(baseFolder, emotions, maxImages=100):
                     orbFeaturesList.append(orbFeatures)
                 yLabels.append(emotion)
 
-                imageCount += 1
-
-    return lbpFeaturesList, orbFeaturesList, yLabels
-
+    return lbpFeaturesList, orbFeaturesList, yLabels, emotionImageCount
 
 def zScoreNormalization(features, K, C):
     mu = np.mean(features, axis=0)
@@ -110,18 +99,19 @@ def featureFusion(lbpFeatures, orbFeatures, K, C, singleAxis=True):
 
     return fusedFeatures
 
-def plot_confusion_matrix_and_accuracies(conf_matrix, class_accuracies, emotions, title):
-    # Plotting the confusion matrix
+def displayResults(confusionMatrix, classAccuracies, accuracyScore, classificationReport, emotions, title, emotionImageCount):
+    # plot the confusion matrix
     plt.figure(figsize=(10, 8))
-    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=emotions, yticklabels=emotions)
+    sns.heatmap(confusionMatrix, annot=True, fmt='d', cmap='Blues', xticklabels=emotions, yticklabels=emotions)
     plt.title(title)
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
-    
-    # Show the plot
-    plt.show()
 
-    # Print class accuracies
-    print(f"\n{title} Accuracies:")
-    for i, accuracy in enumerate(class_accuracies):
-        print(f"{emotions[i]}: {accuracy:.2f}")
+    # plot classification report, class accuracies, and the total accuracy
+    print(f"\n{title} Model Evaluation")
+    print(classificationReport)
+    print(f"\n{title} Class Accuracies:")
+    for i, emotion in enumerate(emotions):
+        print(f"{emotion} (images trained: {emotionImageCount[emotion]} - Accuracy: {(classAccuracies[i] * 100):.2f}%")
+    print(f"\n{title} Total Accuracy: {(accuracyScore * 100):.2f}%")
+    plt.show()
