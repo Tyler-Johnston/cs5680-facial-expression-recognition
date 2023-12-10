@@ -45,7 +45,7 @@ def extractOrbFeatures(faceImage, maxKeypoints=500, descriptorSize=32, displayOr
         # Return a zero vector if no keypoints are detected
         return np.zeros(maxKeypoints * descriptorSize)
 
-def processEmotionImages(baseFolder, emotions):
+def processEmotionImages(baseFolder, emotions, maxImages=100):
     # Load the Haar Cascade for face detection
     cascadePath = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
     faceCascade = cv2.CascadeClassifier(cascadePath)
@@ -55,12 +55,17 @@ def processEmotionImages(baseFolder, emotions):
     # Initialize the emotional state "ground truth" list
     yLabels = []
 
-    # For each image in the CK+ dataset, obtain the LBP and ORB features alongwith the ground truth emotion
+    # For each image in the CK+ dataset, obtain the LBP and ORB features along with the ground truth emotion
     for emotion in emotions:
         emotionFolder = os.path.join(baseFolder, emotion)
+        imageCount = 0
 
         for filename in os.listdir(emotionFolder):
             if filename.endswith('.jpg') or filename.endswith('.png'):
+                if imageCount >= maxImages:
+                    print(f"got to max images for {emotion}")
+                    break
+
                 imagePath = os.path.join(emotionFolder, filename)
                 image = cv2.imread(imagePath, cv2.IMREAD_GRAYSCALE)
                 
@@ -81,7 +86,10 @@ def processEmotionImages(baseFolder, emotions):
                     orbFeaturesList.append(orbFeatures)
                 yLabels.append(emotion)
 
+                imageCount += 1
+
     return lbpFeaturesList, orbFeaturesList, yLabels
+
 
 def zScoreNormalization(features, K, C):
     mu = np.mean(features, axis=0)
