@@ -31,11 +31,11 @@ def extractOrbFeatures(faceImage, maxKeypoints=500, descriptorSize=32):
     
     if descriptors is not None:
         # Flatten and pad the descriptor array
-        flattened_descriptors = descriptors.flatten()
-        padded_length = maxKeypoints * descriptorSize
-        padded_descriptors = np.zeros(padded_length)
-        padded_descriptors[:len(flattened_descriptors)] = flattened_descriptors
-        return padded_descriptors
+        flattenedDescriptors = descriptors.flatten()
+        paddedLength = maxKeypoints * descriptorSize
+        paddedDescriptors = np.zeros(paddedLength)
+        paddedDescriptors[:len(flattenedDescriptors)] = flattenedDescriptors
+        return paddedDescriptors
     else:
         # Return a zero vector if no keypoints are detected
         return np.zeros(maxKeypoints * descriptorSize)
