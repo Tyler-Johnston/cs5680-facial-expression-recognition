@@ -10,7 +10,7 @@ def loadModel(modelPath):
         model = pickle.load(file)
     return model
 
-def preprocessImage(imagePath, faceCascade, useOrb=False, useCombined=False):
+def preprocessImage(imagePath, faceCascade, featureType):
     image = cv2.imread(imagePath, cv2.IMREAD_GRAYSCALE)
 
     # Detect faces in the image
@@ -24,65 +24,60 @@ def preprocessImage(imagePath, faceCascade, useOrb=False, useCombined=False):
 
     # Extract features
     lbpFeatures = extractLbpFeatures(faceImage)
-    orbFeatures = extractOrbFeatures(faceImage) if useOrb or useCombined else None
+    orbFeatures = extractOrbFeatures(faceImage)
 
     # Determine which features to use
-    if useCombined:
+    if featureType == 'combined':
         combinedFeatures = featureFusion(lbpFeatures, orbFeatures, K=100, C=1, singleAxis=False)
         return combinedFeatures
-    elif useOrb:
+    elif featureType == 'orb':
         return orbFeatures
     else:
         return lbpFeatures
 
-def main(imagePath, modelType):
-    # Select model based on input
-    modelPaths = {
-        'lbp': 'LBP_model.pkl',
-        'orb': 'ORB_model.pkl',
-        'combined': 'Combined_model.pkl'
-    }
-    modelPath = modelPaths[modelType]
-    model = loadModel(modelPath)
-
+def main(imagePath, modelPath):
     # Load the Haar Cascade for face detection
     cascadePath = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
     faceCascade = cv2.CascadeClassifier(cascadePath)
 
-    # Preprocess the image
-    features = preprocessImage(imagePath, faceCascade, useOrb=(modelType=='orb'), useCombined=(modelType=='combined'))
+    # Determine feature type based on model filename
+    featureType = 'combined' if 'Combined' in modelPath else 'orb' if 'ORB' in modelPath else 'lbp'
+    print(featureType)
+
+    # Load model and preprocess the image
+    model = loadModel(modelPath)
+    features = preprocessImage(imagePath, faceCascade, featureType)
 
     # Reshape features for single sample prediction
     features = features.reshape(1, -1)
 
-    # Make a prediction
-    prediction = model.predict(features)
-
     # Make a prediction and get decision function scores
+    prediction = model.predict(features)
     decisionScores = model.decision_function(features)
 
-    # Get the indices of the top 4 predictions based on decision scores
-    top4Idx = np.argsort(decisionScores[0])[-4:]
+    # Get the indices of the top predictions based on decision scores
+    topIndices = np.argsort(decisionScores[0])[-4:]
 
-    # Get the decision scores for the top 4 predictions
-    top4Scores = decisionScores[0][top4Idx]
+    # Get the decision scores for the top predictions
+    topScores = decisionScores[0][topIndices]
 
-    # Get the emotion labels for the top 4 predictions
-    top4Emotions = model.classes_[top4Idx]
+    # Get the emotion labels for the top predictions
+    topEmotions = model.classes_[topIndices]
 
-    # Display the image and the top 4 predictions with their decision scores
+    # Display the image and the top predictions with their decision scores
     image = cv2.imread(imagePath)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     plt.imshow(image)
     plt.title(f"Predicted Emotion: {prediction[0]}")
-    for i, (emotion, score) in enumerate(zip(top4Emotions, top4Scores)):
+    for i, (emotion, score) in enumerate(zip(topEmotions, topScores)):
         plt.text(10, 30 + 30*i, f"{emotion}: {score:.2f}", fontsize=12, color='black', bbox=dict(facecolor='white', alpha=0.5))
     plt.axis('off')
     plt.show()
 
+# USAGE: python3 main.py path_to_image path_to_model
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Facial Emotion Recognition')
     parser.add_argument('imagePath', type=str, help='Path to the image file')
-    parser.add_argument('--model', type=str, choices=['lbp', 'orb', 'combined'], default='combined', help='Model type (lbp, orb, or combined)')
+    parser.add_argument('modelPath', type=str, help='Path to the model file')
     args = parser.parse_args()
-    main(args.imagePath, args.model)
+    main(args.imagePath, args.modelPath)

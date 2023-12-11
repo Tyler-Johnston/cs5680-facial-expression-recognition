@@ -108,10 +108,10 @@ def displayResults(confusionMatrix, classAccuracies, accuracyScore, classificati
     plt.xlabel('Predicted Label')
 
     # plot classification report, class accuracies, and the total accuracy
-    print(f"\n{title} Model Evaluation")
+    print(f"\n{title} Classification Report:")
     print(classificationReport)
     print(f"\n{title} Class Accuracies:")
     for i, emotion in enumerate(emotions):
-        print(f"{emotion} (images trained: {emotionImageCount[emotion]} - Accuracy: {(classAccuracies[i] * 100):.2f}%")
+        print(f"   {emotion} (images trained: {emotionImageCount[emotion]}) - Accuracy: {(classAccuracies[i] * 100):.2f}%")
     print(f"\n{title} Total Accuracy: {(accuracyScore * 100):.2f}%")
     plt.show()

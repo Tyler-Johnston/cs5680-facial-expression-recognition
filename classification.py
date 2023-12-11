@@ -11,21 +11,22 @@ import pickle
 from collections import Counter
 
 # Parse command-line arguments
-parser = argparse.ArgumentParser(description='Train a facial emotion recognition model.')
-parser.add_argument('--no_smote', action='store_true', help='Run without using SMOTE/UnderSampling for balancing the dataset')
+parser = argparse.ArgumentParser(description='Run a facial emotion recognition analyzer')
+parser.add_argument('--unbalance', action='store_true', help='Run without using SMOTE/UnderSampling for balancing the dataset')
 parser.add_argument('--all_emotions', action='store_true', help='Use all emotions in the dataset')
+parser.add_argument('--save_model', action='store_true', help='Save the trained model to disk')
 args = parser.parse_args()
 
 # Load and process the dataset
 baseFolder = 'datasets/CK+'
 emotions = ["anger", "contempt", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"] if args.all_emotions else ["happiness", "neutral", "surprise"]
-lbpFeatures, orbFeatures, yLabels, emotionImageCount = processEmotionImages(baseFolder, emotions, not args.no_smote)
+lbpFeatures, orbFeatures, yLabels, emotionImageCount = processEmotionImages(baseFolder, emotions, not args.unbalance)
 combinedFeatures = featureFusion(lbpFeatures, orbFeatures, K=100, C=1) # K = 100 for scaling factor spoke of in the paper. C = 1 is a constant to ensure there isn't a division by zero
 
-def trainAndEvaluate(features, labels, featureType, useSmote):
+def trainAndEvaluate(features, labels, featureType, useRebalancing):
     xTrain, xTest, yTrain, yTest = train_test_split(features, labels, test_size=0.2, random_state=42)
     
-    if useSmote:
+    if useRebalancing:
         classDist = Counter(yLabels)
         maxSamples = max(classDist.values())
         minSamples = min(classDist.values())
@@ -39,10 +40,18 @@ def trainAndEvaluate(features, labels, featureType, useSmote):
     else:
         model = SVC(kernel='linear', class_weight='balanced', random_state=42)
 
+    # train and save the model for the specific feature type (lbp, orb, or combined)
     model.fit(xTrain, yTrain)
-    with open(f'{featureType}_model.pkl', 'wb') as f:
-        pickle.dump(model, f)
+    if (args.save_model):
+        datasetType = ""
+        if args.all_emotions:
+            datasetType += "complete"
+        else:
+            datasetType += "reduced"
+        with open(f'{datasetType}_{featureType}_model.pkl', 'wb') as f:
+            pickle.dump(model, f)
 
+    # get the classification report, confusion matrix, class accuracies, and display the results
     yPred = model.predict(xTest)
     accuracyScore = accuracy_score(yTest, yPred)
     classificationReport = classification_report(yTest, yPred, zero_division=0)
@@ -50,7 +59,7 @@ def trainAndEvaluate(features, labels, featureType, useSmote):
     classAccuracies = confusionMatrix.diagonal() / confusionMatrix.sum(axis=1)
     displayResults(confusionMatrix, classAccuracies, accuracyScore, classificationReport, emotions, featureType, emotionImageCount)
 
-# Train and evaluate models
-trainAndEvaluate(lbpFeatures, yLabels, 'LBP', not args.no_smote)
-trainAndEvaluate(orbFeatures, yLabels, 'ORB', not args.no_smote)
-trainAndEvaluate(combinedFeatures, yLabels, 'Combined', not args.no_smote)
+# train and evaluate models
+trainAndEvaluate(lbpFeatures, yLabels, 'LBP', not args.unbalance)
+trainAndEvaluate(orbFeatures, yLabels, 'ORB', not args.unbalance)
+trainAndEvaluate(combinedFeatures, yLabels, 'Combined', not args.unbalance)
