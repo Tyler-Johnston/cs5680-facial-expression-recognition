@@ -6,27 +6,39 @@ import matplotlib.pyplot as plt
 from utils import extractLbpFeatures, extractOrbFeatures, featureFusion
 
 def loadModel(modelPath):
+    '''
+        - inputs: modelPath: a string path to the saved model file
+        - outputs: model: loaded model object
+        - description: this loads a saved facial classification file to analyze a face
+    '''
     with open(modelPath, 'rb') as file:
         model = pickle.load(file)
     return model
 
 def preprocessImage(imagePath, faceCascade, featureType):
+    '''
+        - inputs: 1) imagePath: a string path to the image file.
+                  2) faceCascade: OpenCV CascadeClassifier object, used for face detection
+                  3) featureType: a string which represents the type of features to extract ('lbp', 'orb', or 'combined')
+        - outputs: features: an array representing the extracted features from the face image
+        - description: This function reads an image from 'imagePath', detects faces using 'faceCascade', and extracts features (LBP, ORB, or combined) from the detected face based on 'featureType'
+    '''
     image = cv2.imread(imagePath, cv2.IMREAD_GRAYSCALE)
 
-    # Detect faces in the image
+    # detect faces in the image
     faces = faceCascade.detectMultiScale(image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
     if len(faces) == 0:
         raise ValueError("No face detected in the image.")
 
-    # Assuming the first detected face is the one to be used
+    # extract the face image contained within the provided image file
     x, y, w, h = faces[0]
     faceImage = image[y:y+h, x:x+w]
 
-    # Extract features
+    # extract LBP and ORB features from the face image
     lbpFeatures = extractLbpFeatures(faceImage)
     orbFeatures = extractOrbFeatures(faceImage)
 
-    # Determine which features to use
+    # determine which features to use
     if featureType == 'combined':
         combinedFeatures = featureFusion(lbpFeatures, orbFeatures, K=100, C=1, singleAxis=False)
         return combinedFeatures
@@ -36,35 +48,40 @@ def preprocessImage(imagePath, faceCascade, featureType):
         return lbpFeatures
 
 def main(imagePath, modelPath):
-    # Load the Haar Cascade for face detection
+    '''
+        - inputs: 1) imagePath: str, path to the image file
+                  2) modelPath: str, path to the saved model file
+        - outputs: None, but displays the image with the predicted emotion and decision scores
+        - description: loads a pre-trained model and an image, processes the image to extract features, predicts the emotion using the model, and displays the image with the predicted emotion and top decision scores
+    '''
+    # load the Haar Cascade for face detection
     cascadePath = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
     faceCascade = cv2.CascadeClassifier(cascadePath)
 
-    # Determine feature type based on model filename
+    # determine feature type based on model filename
     featureType = 'combined' if 'Combined' in modelPath else 'orb' if 'ORB' in modelPath else 'lbp'
-    print(featureType)
 
-    # Load model and preprocess the image
+    # load model and preprocess the image
     model = loadModel(modelPath)
     features = preprocessImage(imagePath, faceCascade, featureType)
 
-    # Reshape features for single sample prediction
+    # reshape features for single sample prediction
     features = features.reshape(1, -1)
 
-    # Make a prediction and get decision function scores
+    # make a prediction and get decision function scores
     prediction = model.predict(features)
     decisionScores = model.decision_function(features)
 
-    # Get the indices of the top predictions based on decision scores
+    # get the indices of the top predictions based on decision scores
     topIndices = np.argsort(decisionScores[0])[-4:]
 
-    # Get the decision scores for the top predictions
+    # get the decision scores for the top predictions
     topScores = decisionScores[0][topIndices]
 
-    # Get the emotion labels for the top predictions
+    # get the emotion labels for the top predictions
     topEmotions = model.classes_[topIndices]
 
-    # Display the image and the top predictions with their decision scores
+    # display the image and the top predictions with their decision scores
     image = cv2.imread(imagePath)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     plt.imshow(image)
